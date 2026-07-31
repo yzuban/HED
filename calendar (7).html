@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f6fa; --surface:#fff; --surface2:#f0f1f7; --surface3:#e8eaf2;
+  --border:rgba(0,0,0,.09); --border2:rgba(0,0,0,.18);
+  --text:#111827; --text-muted:#6b7280; --text-soft:#374151;
+  --accent:#4f35d4; --ok:#0d9e6a; --warn:#d97706; --fail:#dc2626;
+  /* 6 maximally distinct colours */
+  --cat-work:#1a56db;   /* vivid blue */
+  --cat-time:#16a34a;   /* vivid green */
+  --cat-money:#6b3a1f;  /* brown */
+  --cat-health:#dc2626; /* vivid red */
+  --cat-family:#111827; /* near-black */
+  --cat-sleep:#b45309;  /* amber (chip = yellow) */
+  --hour-h:56px; --header-h:152px; --time-w:58px; --radius:8px;
+  --shadow:0 1px 4px rgba(0,0,0,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* ── header ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid var(--border2);background:var(--surface);gap:10px;flex-wrap:wrap;box-shadow:var(--shadow);position:sticky;top:0;z-index:30;}
+header h1{font-family:'DM Serif Display',serif;font-size:1.25rem;letter-spacing:-.02em;white-space:nowrap;color:var(--text);}
+header h1 span{color:var(--accent);font-style:italic;}
+.top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.hdr-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border2);color:var(--text-soft);padding:5px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.78rem;transition:all .15s;white-space:nowrap;background:var(--surface2);}
+.hdr-btn:hover{border-color:var(--accent);color:var(--accent);background:#edeafb;}
+.divider{width:1px;height:22px;background:var(--border2);margin:0 2px;flex-shrink:0;}
+
+/* schedule selector buttons */
+.sched-btn{display:flex;align-items:center;gap:5px;border:2px solid var(--border2);color:var(--text-soft);padding:5px 13px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;transition:all .15s;white-space:nowrap;background:var(--surface2);position:relative;}
+.sched-btn .sbadge{position:absolute;top:-6px;right:-6px;width:14px;height:14px;border-radius:50%;border:2px solid var(--surface);font-size:.5rem;display:flex;align-items:center;justify-content:center;}
+.sched-btn.active{background:#edeafb;border-color:var(--accent);color:var(--accent);}
+.sched-btn.s1 .sbadge{background:var(--ok);}
+.sched-btn.s2 .sbadge{background:var(--warn);}
+.sched-btn.s3 .sbadge{background:var(--fail);}
+.sched-btn.active.s1{background:#e5f8f2;border-color:var(--ok);color:#0e6649;}
+.sched-btn.active.s2{background:#fff8e6;border-color:var(--warn);color:#7a4d00;}
+.sched-btn.active.s3{background:#fff0f0;border-color:var(--fail);color:#8b1a1a;}
+
+.cat-legend-inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cat-legend-inline span{font-size:.72rem;font-weight:600;white-space:nowrap;}
+.cat-legend-inline .work  {color:#1a56db;}
+.cat-legend-inline .time  {color:#16a34a;}
+.cat-legend-inline .money {color:#6b3a1f;}
+.cat-legend-inline .health{color:#dc2626;}
+.cat-legend-inline .family{color:#111827;}
+.cat-legend-inline .sleep {color:#92400e;}
+.check-btn{border-color:rgba(91,79,224,.35);color:var(--accent);background:#f0eefb;}
+.check-btn:hover{background:#e4e0f8;}
+#file-input{display:none;}
+
+/* ── toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:#fff;border-radius:10px;padding:10px 20px;font-size:.82rem;transition:transform .3s;z-index:300;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.18);}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── grid ── */
+.cal-outer{display:block;height:calc(100vh - 57px);overflow:auto;}
+.cal-grid{display:grid;grid-template-columns:var(--time-w) repeat(7,1fr);min-width:780px;}
+
+/* ── day headers ── */
+.col-hdr{background:#fff;border-bottom:2px solid var(--border2);border-right:1px solid var(--border);padding:6px 5px 4px;height:var(--header-h);display:flex;flex-direction:column;align-items:center;gap:1px;overflow:hidden;}
+.col-hdr.time-corner{border-right:1px solid var(--border2);align-items:flex-start;justify-content:flex-end;padding-bottom:8px;background:#f5f6fa;}
+.col-hdr .day-name{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#374151;margin-bottom:2px;}
+.day-cat-list{display:flex;flex-direction:column;width:100%;gap:0px;margin-top:2px;}
+.day-cat-row{display:flex;align-items:center;gap:5px;font-size:.63rem;line-height:1.25;padding:1px 3px;}
+.dcr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.12);}
+.dcr-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
+.dcr-val{font-weight:800;min-width:26px;text-align:right;font-variant-numeric:tabular-nums;font-size:.65rem;}
+.dcr-zero .dcr-name,.dcr-zero .dcr-val{color:#c4c8d4!important;font-weight:400;}
+.corner-legend{display:flex;flex-direction:column;gap:4px;}
+.corner-legend-item{display:flex;align-items:center;gap:5px;font-size:.63rem;color:#374151;font-weight:500;}
+.corner-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.12);}
+
+/* day col free-time indicator dot */
+.day-free-row{display:flex;align-items:center;gap:3px;font-size:.58rem;line-height:1.3;padding:0 2px;margin-top:1px;border-top:1px dashed var(--border2);}
+
+/* ── time col ── */
+.time-label{padding:4px 8px 0;display:flex;align-items:flex-start;justify-content:flex-end;font-size:.63rem;color:var(--text-muted);border-right:1px solid var(--border2);background:var(--surface);height:var(--hour-h);}
+
+/* ── day columns ── */
+.day-col{position:relative;border-right:1px solid var(--border);}
+.day-col:last-child{border-right:none;}
+.hour-line{position:absolute;left:0;right:0;border-top:1px solid var(--border);pointer-events:none;}
+.hour-line.half{border-top:1px dashed rgba(0,0,0,.04);}
+.drop-slot{position:absolute;left:0;right:0;height:var(--hour-h);transition:background .1s;z-index:1;}
+.drop-slot.drag-over{background:rgba(91,79,224,.09);border-radius:4px;}
+
+/* ── event ── */
+.event{position:absolute;left:3px;right:3px;border-radius:var(--radius);padding:5px 8px 16px;cursor:grab;user-select:none;display:flex;flex-direction:column;justify-content:flex-start;gap:2px;transition:box-shadow .12s,opacity .12s;z-index:5;border-left:3px solid transparent;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.event:not(.fixed):hover{box-shadow:0 3px 12px rgba(0,0,0,.15);z-index:10;}
+.event.dragging{opacity:.4;cursor:grabbing;}
+.event.fixed{cursor:default;padding-bottom:5px;}
+.ev-title{font-size:.7rem;font-weight:600;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.ev-meta{font-size:.58rem;opacity:.75;display:flex;gap:4px;align-items:center;margin-top:auto;}
+.ev-cat-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.ev-lock{position:absolute;top:4px;right:5px;font-size:.62rem;opacity:.5;}
+.ev-resize{position:absolute;bottom:0;left:0;right:0;height:12px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;z-index:12;}
+.ev-resize::before{content:'';width:22px;height:3px;border-radius:2px;background:rgba(0,0,0,.18);}
+.event:not(.fixed):hover .ev-resize{opacity:1;}
+.event.resizing{cursor:ns-resize;opacity:.85;z-index:15;}
+.time-tooltip{position:absolute;right:5px;top:4px;background:rgba(0,0,0,.65);color:#fff;font-size:.58rem;font-weight:600;padding:2px 5px;border-radius:4px;pointer-events:none;z-index:20;display:none;}
+.event.resizing .time-tooltip,.event.dragging .time-tooltip{display:block;}
+
+/* category colours */
+/* event chips — maximally distinct fills */
+.cat-work  {background:#1a56db;border-left-color:#1e3a8a;}  /* blue,  white text */
+.cat-time  {background:#16a34a;border-left-color:#14532d;}  /* green, white text */
+.cat-money {background:#6b3a1f;border-left-color:#3b1a08;}  /* brown, white text */
+.cat-health{background:#dc2626;border-left-color:#991b1b;}  /* red,   white text */
+.cat-family{background:#1f2937;border-left-color:#111827;}  /* black, white text */
+.cat-sleep {background:#fbbf24;border-left-color:#d97706;}  /* yellow, DARK text */
+/* white text for all except sleep */
+.event:not(.cat-sleep) .ev-title{color:#fff;}
+.event:not(.cat-sleep) .ev-meta {color:rgba(255,255,255,.82);}
+.event:not(.cat-sleep) .ev-cat-dot{background:rgba(255,255,255,.65);}
+.event:not(.cat-sleep) .ev-lock{color:#fff;}
+/* sleep = dark text on yellow */
+.cat-sleep .ev-title{color:#1c1200;}
+.cat-sleep .ev-meta {color:rgba(0,0,0,.55);}
+.cat-sleep .ev-cat-dot{background:rgba(0,0,0,.28);}
+.cat-sleep .ev-lock{color:#1c1200;}
+.event.fixed::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(135deg,transparent,transparent 5px,rgba(0,0,0,.10) 5px,rgba(0,0,0,.10) 6px);border-radius:var(--radius);pointer-events:none;}
+
+/* ── modals ── */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(20,20,40,.35);z-index:100;backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:16px;}
+.modal-backdrop.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:430px;max-width:100%;padding:26px;position:relative;animation:popIn .18s cubic-bezier(.34,1.56,.64,1);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.14);}
+@keyframes popIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-close{position:absolute;top:13px;right:13px;background:var(--surface3);border:none;color:var(--text-soft);width:27px;height:27px;border-radius:50%;cursor:pointer;font-size:.95rem;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.modal-close:hover{background:var(--border2);}
+/* event modal */
+.modal-badges{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:11px;}
+.modal-cat-badge{display:inline-flex;align-items:center;gap:6px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:3px 9px;border-radius:20px;}
+.modal-fixed-badge{display:none;align-items:center;gap:5px;font-size:.7rem;color:var(--text-soft);background:var(--surface3);padding:3px 8px;border-radius:20px;}
+.modal h2{font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:5px;line-height:1.2;}
+.modal-time{font-size:.78rem;color:var(--text-muted);margin-bottom:13px;}
+.modal-edit{border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:9px;}
+.modal-edit label{font-size:.73rem;color:var(--text-muted);display:flex;flex-direction:column;gap:3px;}
+.modal-edit .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.modal-edit input,.modal-edit select{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:6px 9px;border-radius:7px;font-family:inherit;font-size:.8rem;width:100%;}
+.modal-edit input:focus,.modal-edit select:focus{outline:2px solid var(--accent);border-color:transparent;}
+.modal-save{background:var(--accent);border:none;color:#fff;padding:7px 17px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:600;transition:opacity .15s;align-self:flex-end;}
+.modal-save:hover{opacity:.85;}
+/* balance modal */
+#check-modal{width:560px;}
+.check-title{font-family:'DM Serif Display',serif;font-size:1.45rem;margin-bottom:4px;}
+.check-sched-label{font-size:.75rem;color:var(--text-muted);margin-bottom:16px;font-weight:500;}
+.check-verdict{border-radius:11px;padding:11px 15px;margin-bottom:18px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:.88rem;}
+.check-verdict.pass{background:rgba(24,168,122,.1);border:1px solid rgba(24,168,122,.3);color:var(--ok);}
+.check-verdict.fail{background:rgba(214,59,59,.07);border:1px solid rgba(214,59,59,.22);color:var(--fail);}
+.check-section{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:7px;margin-top:16px;font-weight:700;}
+.crit-row{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:9px;margin-bottom:4px;background:var(--surface2);border:1px solid var(--border);}
+.crit-icon{font-size:.9rem;flex-shrink:0;width:18px;text-align:center;}
+.crit-label{flex:1;font-size:.78rem;color:var(--text-soft);}
+.crit-target{font-size:.65rem;color:var(--text-muted);margin-left:4px;font-weight:400;}
+.crit-bar-wrap{width:72px;height:6px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden;flex-shrink:0;}
+.crit-bar{height:100%;border-radius:3px;transition:width .4s;}
+.crit-value{font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:32px;text-align:right;}
+.crit-row.ok  {border-color:rgba(24,168,122,.2);}  .crit-row.ok   .crit-value{color:var(--ok);}  .crit-row.ok   .crit-bar{background:var(--ok);}
+.crit-row.warn{border-color:rgba(201,128,0,.2);}   .crit-row.warn .crit-value{color:var(--warn);} .crit-row.warn .crit-bar{background:var(--warn);}
+.crit-row.fail{border-color:rgba(214,59,59,.2);}   .crit-row.fail .crit-value{color:var(--fail);} .crit-row.fail .crit-bar{background:var(--fail);}
+.day-table{width:100%;border-collapse:collapse;font-size:.73rem;}
+.day-table th{text-align:left;padding:5px 7px;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);border-bottom:2px solid var(--border2);}
+.day-table td{padding:5px 7px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.day-table tr:last-child td{border-bottom:none;}
+.day-table tr.day-fail{background:rgba(214,59,59,.03);}
+.pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:9px;font-size:.63rem;font-weight:600;}
+.pill.ok  {background:rgba(24,168,122,.12);color:var(--ok);}
+.pill.fail{background:rgba(214,59,59,.12);color:var(--fail);}
+
+/* ── welcome modal ── */
+#welcome-modal{width:500px;}
+.welcome-icon{font-size:2.2rem;margin-bottom:12px;}
+.welcome-title{font-family:'DM Serif Display',serif;font-size:1.6rem;margin-bottom:10px;line-height:1.2;}
+.welcome-body{font-size:.88rem;line-height:1.7;color:var(--text-soft);margin-bottom:20px;}
+.welcome-body strong{color:var(--text);}
+.welcome-steps{display:flex;flex-direction:column;gap:8px;margin-bottom:22px;}
+.welcome-step{display:flex;align-items:flex-start;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 13px;}
+.ws-num{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--accent);flex-shrink:0;line-height:1;}
+.ws-text{font-size:.82rem;color:var(--text-soft);line-height:1.5;}
+.ws-text strong{color:var(--text);}
+.welcome-start{background:var(--accent);border:none;color:#fff;padding:10px 24px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:.88rem;font-weight:600;transition:opacity .15s;width:100%;}
+.welcome-start:hover{opacity:.87;}
+
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Weekly <span>Planner</span></h1>
+  <div class="cat-legend-inline">
+    <span class="work">● Work</span><span class="time">● Time</span><span class="money">● Money</span><span class="health">● Health</span><span class="family">● Family</span><span class="sleep">● Sleep</span>
+  </div>
+  <div class="top-right">
+    <!-- schedule selector -->
+    <button class="sched-btn s1 active" id="btn-s1" onclick="loadSchedule(0)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Schedule 1
+      <span class="sbadge">✓</span>
+    </button>
+    <button class="sched-btn s2" id="btn-s2" onclick="loadSchedule(1)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Schedule 2
+      <span class="sbadge">!</span>
+    </button>
+    <button class="sched-btn s3" id="btn-s3" onclick="loadSchedule(2)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Schedule 3
+      <span class="sbadge">‼</span>
+    </button>
+    <div class="divider"></div>
+    <label class="hdr-btn" for="file-input">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Import XML
+    </label>
+    <input type="file" id="file-input" accept=".xml">
+    <button class="hdr-btn check-btn" id="btn-check">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Check Balance
+    </button>
+    <button class="hdr-btn" id="btn-export">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export XML
+    </button>
+  </div>
+</header>
+
+<div class="cal-outer"><div class="cal-grid" id="cal-grid"></div></div>
+
+<!-- welcome / task description modal -->
+<div class="modal-backdrop open" id="welcome-backdrop">
+  <div class="modal" id="welcome-modal">
+    <div class="welcome-icon">📅</div>
+    <div class="welcome-title">Weekly Balance Planner</div>
+    <div class="welcome-body">
+      This is an interactive weekly schedule trainer for university professors.<br>
+      Your goal is to <strong>plan a balanced work week</strong> across six life categories.
+    </div>
+    <div class="welcome-steps">
+      <div class="welcome-step">
+        <span class="ws-num">1</span>
+        <div class="ws-text"><strong>Schedule 1 — Balanced reference.</strong> Take a look at the first work-balance variant. Is it relevant for you? Explore how time is distributed across categories.</div>
+      </div>
+      <div class="welcome-step">
+        <span class="ws-num">2</span>
+        <div class="ws-text"><strong>Schedule 2 — Moderate overload.</strong> Come to the second variant and try to find a solution for activities to achieve a balanced schedule. Drag, resize and edit unlocked events.</div>
+      </div>
+      <div class="welcome-step">
+        <span class="ws-num">3</span>
+        <div class="ws-text"><strong>Schedule 3 — Critical overload.</strong> Try to manage the third variant of the planner. What is your idea about the traffic of activities?</div>
+      </div>
+    </div>
+    <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">
+      Use <strong>Check Balance</strong> to verify criteria · <strong>🔒 locked</strong> events cannot be moved · <strong>Export XML</strong> saves your result
+    </div>
+    <button class="welcome-start" id="welcome-start">Start — open Schedule 1 →</button>
+  </div>
+</div>
+
+<!-- event edit modal -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <button class="modal-close" id="modal-close">✕</button>
+    <div class="modal-badges">
+      <div class="modal-cat-badge" id="modal-badge"></div>
+      <div class="modal-fixed-badge" id="modal-fixed-badge">🔒 Locked</div>
+    </div>
+    <h2 id="modal-title"></h2>
+    <div class="modal-time" id="modal-time"></div>
+    <div class="modal-edit" id="modal-edit">
+      <label>Event title<input type="text" id="ed-title"></label>
+      <div class="row2">
+        <label>Start<input type="time" id="ed-start" step="3600"></label>
+        <label>End<input type="time" id="ed-end" step="3600"></label>
+      </div>
+      <label>Category<select id="ed-cat"></select></label>
+      <button class="modal-save" id="modal-save">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- balance check modal -->
+<div class="modal-backdrop" id="check-backdrop">
+  <div class="modal" id="check-modal">
+    <button class="modal-close" id="check-close">✕</button>
+    <div class="check-title">Balance Check</div>
+    <div class="check-sched-label" id="check-sched-label"></div>
+    <div id="check-verdict" class="check-verdict"></div>
+    <div class="check-section">Weekly totals</div>
+    <div id="check-weekly"></div>
+    <div class="check-section">Daily breakdown</div>
+    <table class="day-table">
+      <thead><tr><th>Day</th><th>Sleep</th><th>Family</th><th>Status</th><th>Issues</th></tr></thead>
+      <tbody id="check-daily"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════════════
+const CAT = {
+  work:  {label:'Work',   color:'#1a56db'},  /* blue */
+  time:  {label:'Time',   color:'#16a34a'},  /* green */
+  money: {label:'Money',  color:'#6b3a1f'},  /* brown */
+  health:{label:'Health', color:'#dc2626'},  /* red */
+  family:{label:'Family', color:'#111827'},  /* near-black */
+  sleep: {label:'Sleep',  color:'#92400e'},  /* amber-brown for text/dots; chip=yellow */
+};
+const DAY_EN   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAY_FULL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const XML_DAY  = {monday:0,tuesday:1,wednesday:2,thursday:3,friday:4,saturday:5,sunday:6};
+const HOUR_START=0, HOUR_END=24, TOTAL_HOURS=24, HOUR_H_PX=56;
+const SCHED_NAMES = ['Schedule 1 — Balanced', 'Schedule 2 — Moderate overload', 'Schedule 3 — Critical overload'];
+
+// Balance thresholds
+const WEEK_RULES = [
+  {key:'work',   label:'Work',   min:40, max:50,  icon:'💼', note:'40h mandatory + up to 10h extra'},
+  {key:'family', label:'Family', min:14, max:null, icon:'👨‍👩‍👧'},
+  {key:'health', label:'Health', min:5,  max:null, icon:'🏃'},
+  {key:'time',   label:'Time (incl. free slots)', min:34, max:null, icon:'⏳'},
+  {key:'sleep',  label:'Sleep',  min:56, max:null, icon:'😴'},
+];
+const DAY_SLEEP_MIN=6, DAY_FAMILY_MIN=1;
+
+// populate category select
+const edCat=document.getElementById('ed-cat');
+Object.entries(CAT).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.label;edCat.appendChild(o);});
+
+// ══════════════════════════════════════════════════════════════════
+// SCHEDULES DATA
+// ══════════════════════════════════════════════════════════════════
+// Format: {start, end, cat, fixed, title}
+// fixed=true means locked from editing/moving
+const RAW_SCHEDULES = [
+
+// ─── SCHEDULE 1: BALANCED ─────────────────────────────────────────
+// Work=40, Family=18, Health=5, Time=21, Sleep=56, Free=28
+[
+ // MONDAY  work=8, fam=3, health=0, time=0, sleep=8, free=5
+ {d:0,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:0,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Research Methods (BSc)'},
+ {d:0,s:10,e:11,cat:'work',  fix:false, t:'Email & admin'},
+ {d:0,s:11,e:13,cat:'work',  fix:true,  t:'Lecture: Data Analysis (MSc)'},
+ {d:0,s:13,e:14,cat:'family',fix:false, t:'Lunch with family call'},
+ {d:0,s:14,e:16,cat:'work',  fix:false, t:'Student consultations'},
+ {d:0,s:16,e:18,cat:'work',  fix:false, t:'Research writing'},
+ {d:0,s:18,e:19,cat:'family',fix:false, t:'Pick up kids from school'},
+ {d:0,s:19,e:20,cat:'family',fix:false, t:'Family dinner'},
+ {d:0,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // TUESDAY  work=8, fam=3, health=1, time=1, sleep=8, free=3
+ {d:1,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:1,s:8, e:10,cat:'work',  fix:true,  t:'Department meeting'},
+ {d:1,s:10,e:12,cat:'work',  fix:true,  t:'Lecture: Academic Writing'},
+ {d:1,s:12,e:13,cat:'work',  fix:false, t:'Peer review work'},
+ {d:1,s:13,e:14,cat:'family',fix:false, t:'Lunch & short walk'},
+ {d:1,s:14,e:16,cat:'work',  fix:false, t:'DigiUni project tasks'},
+ {d:1,s:16,e:17,cat:'work',  fix:false, t:'Research writing'},
+ {d:1,s:17,e:18,cat:'health',fix:false, t:'Evening run / gym'},
+ {d:1,s:18,e:19,cat:'time',  fix:false, t:'Personal reading'},
+ {d:1,s:19,e:20,cat:'family',fix:false, t:'Kids\' bedtime routine'},
+ {d:1,s:20,e:21,cat:'family',fix:false, t:'Time with spouse'},
+ {d:1,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // WEDNESDAY  work=6, fam=2, health=0, time=2, sleep=8, free=6
+ {d:2,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:2,s:8, e:9, cat:'work',  fix:false, t:'Morning task planning'},
+ {d:2,s:9, e:11,cat:'work',  fix:true,  t:'DigiUni online project meeting'},
+ {d:2,s:11,e:12,cat:'time',  fix:false, t:'Housekeeping / errands'},
+ {d:2,s:12,e:13,cat:'work',  fix:false, t:'Research: article draft'},
+ {d:2,s:13,e:14,cat:'family',fix:false, t:'Family lunch'},
+ {d:2,s:14,e:16,cat:'work',  fix:false, t:'Research: article draft'},
+ {d:2,s:16,e:17,cat:'work',  fix:false, t:'Student e-mail replies'},
+ {d:2,s:17,e:18,cat:'time',  fix:false, t:'Personal development / course'},
+ {d:2,s:18,e:19,cat:'family',fix:false, t:'Family evening walk'},
+ {d:2,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // THURSDAY  work=7, fam=2, health=2, time=0, sleep=8, free=5
+ {d:3,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:3,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Educational Technology'},
+ {d:3,s:10,e:11,cat:'work',  fix:false, t:'Student consultations'},
+ {d:3,s:11,e:13,cat:'work',  fix:true,  t:'Exam committee meeting'},
+ {d:3,s:13,e:14,cat:'health',fix:false, t:'Lunch + walk'},
+ {d:3,s:14,e:16,cat:'work',  fix:false, t:'Grant proposal writing'},
+ {d:3,s:16,e:17,cat:'work',  fix:false, t:'Presentation prep'},
+ {d:3,s:17,e:18,cat:'health',fix:false, t:'Yoga / stretching'},
+ {d:3,s:18,e:19,cat:'family',fix:false, t:'Family dinner'},
+ {d:3,s:19,e:20,cat:'family',fix:false, t:'Help kids with homework'},
+ {d:3,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // FRIDAY  work=6, fam=3, health=0, time=3, sleep=8, free=4
+ {d:4,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:4,s:8, e:9, cat:'work',  fix:false, t:'Weekly planning & email triage'},
+ {d:4,s:9, e:11,cat:'work',  fix:true,  t:'Lecture: Instructional Design'},
+ {d:4,s:11,e:12,cat:'work',  fix:false, t:'Research writing'},
+ {d:4,s:12,e:13,cat:'work',  fix:false, t:'DigiUni deliverable review'},
+ {d:4,s:13,e:14,cat:'work',  fix:false, t:'Student consultations'},
+ {d:4,s:14,e:15,cat:'family',fix:false, t:'Pick up kids'},
+ {d:4,s:15,e:16,cat:'time',  fix:false, t:'Grocery shopping'},
+ {d:4,s:16,e:17,cat:'time',  fix:false, t:'Housekeeping'},
+ {d:4,s:17,e:18,cat:'time',  fix:false, t:'Hobby / photography'},
+ {d:4,s:18,e:19,cat:'family',fix:false, t:'Family dinner'},
+ {d:4,s:19,e:20,cat:'family',fix:false, t:'Board games with kids'},
+ {d:4,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // SATURDAY  work=3, fam=3, health=2, time=8, sleep=8, free=0
+ {d:5,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:5,s:8, e:10,cat:'health',fix:false, t:'Morning run & breakfast'},
+ {d:5,s:10,e:12,cat:'time',  fix:false, t:'Housekeeping & laundry'},
+ {d:5,s:12,e:13,cat:'family',fix:false, t:'Family lunch'},
+ {d:5,s:13,e:15,cat:'time',  fix:false, t:'Personal reading & reflection'},
+ {d:5,s:15,e:17,cat:'work',  fix:false, t:'Research article (own initiative)'},
+ {d:5,s:17,e:18,cat:'time',  fix:false, t:'Online course / self-study'},
+ {d:5,s:18,e:19,cat:'family',fix:false, t:'Family outing / cinema'},
+ {d:5,s:19,e:20,cat:'family',fix:false, t:'Evening family time'},
+ {d:5,s:20,e:23,cat:'time',  fix:false, t:'Reading, relaxation, hobbies'},
+ {d:5,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // SUNDAY  work=2, fam=4, health=1, time=7, sleep=8, free=2  (free 21-23)
+ {d:6,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:6,s:8, e:9, cat:'time',  fix:false, t:'Morning routine & coffee'},
+ {d:6,s:9, e:11,cat:'family',fix:false, t:'Family brunch'},
+ {d:6,s:11,e:12,cat:'health',fix:false, t:'Bike ride / nature walk'},
+ {d:6,s:12,e:14,cat:'family',fix:false, t:'Park picnic with kids'},
+ {d:6,s:14,e:16,cat:'time',  fix:false, t:'Reading / hobby'},
+ {d:6,s:16,e:17,cat:'family',fix:false, t:'Family dinner prep & eat'},
+ {d:6,s:17,e:19,cat:'work',  fix:false, t:'Week prep: slides & tasks'},
+ {d:6,s:19,e:22,cat:'time',  fix:false, t:'Personal time & reflection journal'},
+ {d:6,s:22,e:23,cat:'family',fix:false, t:'Goodnight routine with kids'},
+ {d:6,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+],
+
+// ─── SCHEDULE 2: MODERATE OVERLOAD ────────────────────────────────
+// Work=52, Family=8, Health=2, Time=8, Sleep=56, Money=2, Free=40
+// Fails: work>45, family<14, health<5, time<21. Daily: some days no family, short sleep
+[
+ // MON  work=10, fam=1, health=0, time=0, sleep=8, free=5
+ {d:0,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:0,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Research Methods (BSc)'},
+ {d:0,s:10,e:12,cat:'work',  fix:false, t:'Email triage & admin'},
+ {d:0,s:12,e:14,cat:'work',  fix:true,  t:'Lecture: Data Analysis (MSc)'},
+ {d:0,s:14,e:16,cat:'work',  fix:false, t:'Student consultations'},
+ {d:0,s:16,e:18,cat:'work',  fix:false, t:'Research writing'},
+ {d:0,s:18,e:19,cat:'family',fix:false, t:'Quick family dinner'},
+ {d:0,s:19,e:21,cat:'work',  fix:false, t:'Grant proposal — evening session'},
+ {d:0,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // TUE  work=10, fam=1, health=0, time=0, sleep=7, free=6
+ {d:1,s:0, e:7, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:1,s:7, e:8, cat:'work',  fix:false, t:'Early prep — article deadline'},
+ {d:1,s:8, e:10,cat:'work',  fix:true,  t:'Department meeting'},
+ {d:1,s:10,e:12,cat:'work',  fix:true,  t:'Lecture: Academic Writing'},
+ {d:1,s:12,e:13,cat:'work',  fix:false, t:'Article revision at desk'},
+ {d:1,s:13,e:15,cat:'work',  fix:false, t:'DigiUni project tasks'},
+ {d:1,s:15,e:17,cat:'work',  fix:false, t:'Peer review — 2 papers'},
+ {d:1,s:17,e:18,cat:'family',fix:false, t:'Kids pickup & dinner'},
+ {d:1,s:18,e:20,cat:'work',  fix:false, t:'Research writing (evening)'},
+ {d:1,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // WED  work=8, fam=1, health=0, time=0, sleep=7, free=8  (online day)
+ {d:2,s:0, e:7, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:2,s:7, e:8, cat:'work',  fix:false, t:'Morning email & planning'},
+ {d:2,s:8, e:9, cat:'work',  fix:false, t:'Admin & task management'},
+ {d:2,s:9, e:11,cat:'work',  fix:true,  t:'DigiUni online project meeting'},
+ {d:2,s:11,e:12,cat:'work',  fix:false, t:'Student e-mail consultations'},
+ {d:2,s:12,e:14,cat:'work',  fix:false, t:'Research writing'},
+ {d:2,s:14,e:16,cat:'work',  fix:false, t:'Grant proposal revision'},
+ {d:2,s:17,e:18,cat:'family',fix:false, t:'Brief family dinner'},
+ {d:2,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // THU  work=10, fam=1, health=0, time=0, sleep=8, free=5
+ {d:3,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:3,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Educational Technology'},
+ {d:3,s:10,e:11,cat:'work',  fix:false, t:'Student consultations'},
+ {d:3,s:11,e:13,cat:'work',  fix:true,  t:'Exam committee meeting'},
+ {d:3,s:13,e:15,cat:'work',  fix:false, t:'Research: data processing'},
+ {d:3,s:15,e:17,cat:'work',  fix:false, t:'Conference presentation prep'},
+ {d:3,s:17,e:18,cat:'family',fix:false, t:'Family dinner (rushed)'},
+ {d:3,s:18,e:20,cat:'work',  fix:false, t:'Freelance consulting (report)'},
+ {d:3,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // FRI  work=8, fam=2, health=0, time=0, sleep=6, free=8
+ {d:4,s:0, e:6, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:4,s:6, e:8, cat:'work',  fix:false, t:'Early writing session (deadline)'},
+ {d:4,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Instructional Design'},
+ {d:4,s:10,e:12,cat:'work',  fix:false, t:'Research writing'},
+ {d:4,s:12,e:13,cat:'work',  fix:false, t:'DigiUni deliverable review'},
+ {d:4,s:13,e:14,cat:'work',  fix:false, t:'Student consultations'},
+ {d:4,s:14,e:15,cat:'family',fix:false, t:'Pick up kids'},
+ {d:4,s:15,e:16,cat:'work',  fix:false, t:'Week wrap-up & emails'},
+ {d:4,s:16,e:17,cat:'family',fix:false, t:'Dinner with family'},
+ {d:4,s:17,e:19,cat:'money', fix:false, t:'Freelance consulting'},
+ {d:4,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // SAT  work=4, fam=2, health=2, time=8, sleep=8, free=0
+ {d:5,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:5,s:8, e:10,cat:'health',fix:false, t:'Morning run'},
+ {d:5,s:10,e:12,cat:'work',  fix:false, t:'Scopus article revision'},
+ {d:5,s:12,e:13,cat:'family',fix:false, t:'Lunch with family'},
+ {d:5,s:13,e:15,cat:'work',  fix:false, t:'Conference slides'},
+ {d:5,s:15,e:19,cat:'time',  fix:false, t:'Housekeeping & errands'},
+ {d:5,s:19,e:20,cat:'family',fix:false, t:'Evening with spouse'},
+ {d:5,s:20,e:23,cat:'time',  fix:false, t:'Reading & relaxation'},
+ {d:5,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // SUN  work=2, fam=0, health=0, time=0, sleep=10, free=12
+ {d:6,s:0, e:10,cat:'sleep', fix:false, t:'Sleeping (recovery)'},
+ {d:6,s:10,e:12,cat:'money', fix:false, t:'Freelance consulting (report)'},
+ {d:6,s:12,e:14,cat:'work',  fix:false, t:'Week prep: lectures & slides'},
+ {d:6,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+],
+
+// ─── SCHEDULE 3: CRITICAL OVERLOAD ────────────────────────────────
+// Work=62, Family=4, Health=1, Time=4, Sleep=47, Money=5, Free=45
+// Fails ALL weekly: work>>45, family<<14, health<<5, time<<21, sleep<<56
+// Daily: most days <6h sleep, most days 0h family
+[
+ // MON  work=12, fam=0, health=0, time=0, sleep=6, free=6
+ {d:0,s:0, e:6, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:0,s:6, e:8, cat:'work',  fix:false, t:'Early email & urgent admin'},
+ {d:0,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Research Methods (BSc)'},
+ {d:0,s:10,e:12,cat:'work',  fix:false, t:'Student consultations (queue)'},
+ {d:0,s:12,e:14,cat:'work',  fix:true,  t:'Lecture: Data Analysis (MSc)'},
+ {d:0,s:14,e:16,cat:'work',  fix:true,  t:'University senate meeting'},
+ {d:0,s:16,e:18,cat:'work',  fix:false, t:'Grant proposal writing'},
+ {d:0,s:18,e:20,cat:'work',  fix:false, t:'Research writing (deadline)'},
+ {d:0,s:20,e:22,cat:'work',  fix:false, t:'Scopus article revision'},
+ {d:0,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // TUE  work=14, fam=1, health=0, time=0, sleep=5, free=4
+ {d:1,s:0, e:5, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:1,s:5, e:7, cat:'work',  fix:false, t:'Pre-dawn writing (conf. deadline)'},
+ {d:1,s:7, e:8, cat:'work',  fix:false, t:'Email — urgent replies'},
+ {d:1,s:8, e:10,cat:'work',  fix:true,  t:'Department meeting'},
+ {d:1,s:10,e:12,cat:'work',  fix:true,  t:'Lecture: Academic Writing'},
+ {d:1,s:12,e:14,cat:'work',  fix:false, t:'DigiUni project deadline push'},
+ {d:1,s:14,e:16,cat:'work',  fix:false, t:'Conference paper revision'},
+ {d:1,s:16,e:18,cat:'work',  fix:false, t:'Research data analysis'},
+ {d:1,s:18,e:19,cat:'family',fix:false, t:'Quick family dinner'},
+ {d:1,s:19,e:21,cat:'work',  fix:false, t:'Peer review (overdue)'},
+ {d:1,s:21,e:23,cat:'money', fix:false, t:'Freelance consulting (urgent)'},
+ {d:1,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // WED  work=10, fam=0, health=0, time=0, sleep=6, free=8
+ {d:2,s:0, e:6, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:2,s:6, e:8, cat:'work',  fix:false, t:'Early article writing'},
+ {d:2,s:8, e:9, cat:'work',  fix:false, t:'Admin backlog'},
+ {d:2,s:9, e:11,cat:'work',  fix:true,  t:'DigiUni online project meeting'},
+ {d:2,s:11,e:12,cat:'work',  fix:false, t:'Student e-mail consultations'},
+ {d:2,s:12,e:14,cat:'work',  fix:false, t:'Grant application forms'},
+ {d:2,s:14,e:16,cat:'work',  fix:false, t:'Research writing'},
+ {d:2,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // THU  work=12, fam=0, health=0, time=0, sleep=5, free=7
+ {d:3,s:0, e:5, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:3,s:5, e:7, cat:'work',  fix:false, t:'Pre-dawn writing session'},
+ {d:3,s:7, e:8, cat:'work',  fix:false, t:'Email & planning'},
+ {d:3,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Educational Technology'},
+ {d:3,s:10,e:11,cat:'work',  fix:false, t:'Student consultations'},
+ {d:3,s:11,e:13,cat:'work',  fix:true,  t:'Exam committee meeting'},
+ {d:3,s:13,e:15,cat:'work',  fix:false, t:'Research: data processing'},
+ {d:3,s:15,e:17,cat:'work',  fix:false, t:'Presentation prep (2 events)'},
+ {d:3,s:17,e:19,cat:'work',  fix:false, t:'Research writing (evening)'},
+ {d:3,s:21,e:23,cat:'money', fix:false, t:'Freelance: client deliverable'},
+ {d:3,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // FRI  work=10, fam=1, health=0, time=0, sleep=5, free=8
+ {d:4,s:0, e:5, cat:'sleep', fix:false, t:'Sleeping'},
+ {d:4,s:5, e:7, cat:'work',  fix:false, t:'Deadline writing — conference paper'},
+ {d:4,s:7, e:8, cat:'work',  fix:false, t:'Email & submission'},
+ {d:4,s:8, e:10,cat:'work',  fix:true,  t:'Lecture: Instructional Design'},
+ {d:4,s:10,e:12,cat:'work',  fix:false, t:'Research writing'},
+ {d:4,s:12,e:13,cat:'work',  fix:false, t:'DigiUni deliverable review'},
+ {d:4,s:13,e:14,cat:'work',  fix:false, t:'Student consultations'},
+ {d:4,s:14,e:15,cat:'family',fix:false, t:'Pick up kids (brief)'},
+ {d:4,s:15,e:17,cat:'work',  fix:false, t:'Week wrap-up & report'},
+ {d:4,s:17,e:19,cat:'money', fix:false, t:'Freelance consulting'},
+ {d:4,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // SAT  work=4, fam=2, health=1, time=4, sleep=8, free=5
+ {d:5,s:0, e:8, cat:'sleep', fix:false, t:'Sleeping (catching up)'},
+ {d:5,s:8, e:9, cat:'health',fix:false, t:'Short morning walk'},
+ {d:5,s:9, e:11,cat:'work',  fix:false, t:'Scopus revision & submission'},
+ {d:5,s:11,e:12,cat:'family',fix:false, t:'Lunch with family'},
+ {d:5,s:12,e:14,cat:'work',  fix:false, t:'Conference slides'},
+ {d:5,s:14,e:18,cat:'time',  fix:false, t:'Housekeeping & grocery run'},
+ {d:5,s:18,e:19,cat:'family',fix:false, t:'Dinner with family'},
+ {d:5,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+
+ // SUN  work=0, fam=0, health=0, time=0, sleep=10, free=14
+ {d:6,s:0, e:10,cat:'sleep', fix:false, t:'Sleeping (recovery day)'},
+ {d:6,s:23,e:24,cat:'sleep', fix:false, t:'Sleeping'},
+]
+];
+
+// ══════════════════════════════════════════════════════════════════
+// XML PARSER (for imported files)
+// ══════════════════════════════════════════════════════════════════
+const CAT_RULES=[
+  {cat:'sleep',  words:['sleeping','sleep']},
+  {cat:'health', words:['sport','gym','yoga','swim','run','dentist','doctor','health','medic','massage','dance','walk']},
+  {cat:'family', words:['family','kids','children','child','school','pick up','picnic','friends','friend','spouse','dinner with','brunch']},
+  {cat:'work',   words:['lecture','class','meeting','project','research','grant','revision','article','paper','writing','consultations','digiUni','exam','admin','email','report','peer review','deadline','conference','slides','submission','senate','deliverable','freelance']},
+  {cat:'time',   words:['routine','morning','reading','personal','hobby','shopping','housekeeping','laundry','errands','relaxation','photography','self-study','course']},
+  {cat:'money',  words:['budget','finance','invoice','consulting','salary']},
+];
+function detectCat(t){t=t.toLowerCase();for(const r of CAT_RULES)if(r.words.some(w=>t.includes(w)))return r.cat;return'time';}
+
+function rawToSchedule(raw){
+  const res=[];for(let i=0;i<7;i++)res.push([]);
+  let id=1;
+  raw.forEach(ev=>{
+    res[ev.d].push({id:id++,day:ev.d,startH:ev.s,endH:ev.e,duration:ev.e-ev.s,fixed:ev.fix,title:ev.t,cat:ev.cat});
+  });
+  return res;
+}
+
+function parseXML(xmlStr){
+  const doc=new DOMParser().parseFromString(xmlStr,'application/xml');
+  if(doc.querySelector('parsererror'))throw new Error('XML error');
+  const res=[];for(let i=0;i<7;i++)res.push([]);
+  let id=1;
+  doc.querySelectorAll('day').forEach(dayEl=>{
+    const di=XML_DAY[(dayEl.getAttribute('name')||'').toLowerCase()];
+    if(di===undefined)return;
+    dayEl.querySelectorAll('event').forEach(el=>{
+      const s=parseInt((el.getAttribute('start')||'0:0').split(':')[0]);
+      let   e=parseInt((el.getAttribute('end')  ||'1:0').split(':')[0]);
+      if(e<=s)e=HOUR_END;
+      e=Math.min(e,HOUR_END);
+      if(e-s<=0)return;
+      const title=el.textContent.trim();
+      let cat=(el.getAttribute('category')||'').toLowerCase();
+      if(!CAT[cat])cat=detectCat(title);
+      else if(title.toLowerCase().includes('sleep'))cat='sleep';
+      res[di].push({id:id++,day:di,startH:s,endH:e,duration:e-s,
+        fixed:el.getAttribute('is_fixed')==='true',title,cat});
+    });
+  });
+  return res;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+const SCHEDULES_DATA = RAW_SCHEDULES.map(rawToSchedule);
+let activeSchedIdx = 0;
+// deep-clone so edits don't corrupt originals
+let schedule = deepClone(SCHEDULES_DATA[0]);
+let dragEvt = null;
+
+function deepClone(s){ return s.map(day=>day.map(ev=>({...ev}))); }
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function hFmt(h){return String(h).padStart(2,'0')+':00';}
+function dayCatHours(d){
+  const t={};Object.keys(CAT).forEach(k=>t[k]=0);
+  (schedule[d]||[]).forEach(ev=>t[ev.cat]=(t[ev.cat]||0)+ev.duration);
+  t.time=(t.time||0)+dayFreeHours(d); // free slots → time
+  return t;
+}
+function dayFreeHours(d){
+  const used=(schedule[d]||[]).reduce((s,ev)=>s+ev.duration,0);
+  return 24-used;
+}
+function getWeeklyTotals(){
+  const t={work:0,family:0,health:0,time:0,money:0,sleep:0,free:0};
+  for(let d=0;d<7;d++){
+    (schedule[d]||[]).forEach(ev=>{if(t[ev.cat]!==undefined)t[ev.cat]+=ev.duration;});
+    const free=dayFreeHours(d);
+    t.free+=free;
+    t.time+=free; // free slots count toward Time
+  }
+  return t;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SCHEDULE SWITCHING
+// ══════════════════════════════════════════════════════════════════
+function loadSchedule(idx){
+  activeSchedIdx=idx;
+  schedule=deepClone(SCHEDULES_DATA[idx]);
+  ['btn-s1','btn-s2','btn-s3'].forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('active',i===idx);
+  });
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════════
+function render(){
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML='';
+
+  // ── empty corner cell (no legend — legend is in page sidebar removed)
+  const corner=document.createElement('div');
+  corner.className='col-hdr time-corner';
+  grid.appendChild(corner);
+
+  // ── day headers
+  for(let d=0;d<7;d++){
+    const hrs=dayCatHours(d);
+    const rows=Object.entries(CAT).map(([k,v])=>{
+      const h=hrs[k]||0;
+      const zero=!h;
+      return`<div class="day-cat-row${zero?' dcr-zero':''}">
+        <div class="dcr-dot" style="background:${v.color}"></div>
+        <span class="dcr-name" style="color:${zero?'':v.color}">${v.label}</span>
+        <span class="dcr-val" style="color:${zero?'':v.color}">${h?h+'h':'—'}</span>
+      </div>`;
+    }).join('');
+    const hdr=document.createElement('div');
+    hdr.className='col-hdr';
+    hdr.innerHTML=`<span class="day-name">${DAY_EN[d]}</span><div class="day-cat-list">${rows}</div>`;
+    grid.appendChild(hdr);
+  }
+
+  // ── time labels
+  const tc=document.createElement('div');
+  tc.style.cssText='grid-column:1;grid-row:2;display:flex;flex-direction:column;';
+  for(let h=0;h<24;h++){
+    const tl=document.createElement('div');tl.className='time-label';tl.textContent=hFmt(h);
+    tc.appendChild(tl);
+  }
+  grid.appendChild(tc);
+
+  // ── day columns
+  for(let d=0;d<7;d++){
+    const col=document.createElement('div');
+    col.className='day-col';
+    col.style.cssText=`grid-column:${d+2};grid-row:2;height:${24*HOUR_H_PX}px;position:relative;`;
+    for(let h=0;h<24;h++){
+      const l=document.createElement('div');l.className='hour-line';l.style.top=(h*HOUR_H_PX)+'px';col.appendChild(l);
+      const hl=document.createElement('div');hl.className='hour-line half';hl.style.top=(h*HOUR_H_PX+HOUR_H_PX/2)+'px';col.appendChild(hl);
+    }
+    for(let h=0;h<24;h++){
+      const sl=document.createElement('div');sl.className='drop-slot';
+      sl.style.top=(h*HOUR_H_PX)+'px';sl.dataset.day=d;sl.dataset.hour=h;
+      sl.addEventListener('dragover',e=>{e.preventDefault();sl.classList.add('drag-over');});
+      sl.addEventListener('dragleave',()=>sl.classList.remove('drag-over'));
+      sl.addEventListener('drop',e=>{e.preventDefault();sl.classList.remove('drag-over');handleDrop(d,h);});
+      col.appendChild(sl);
+    }
+    (schedule[d]||[]).forEach(ev=>{
+      col.appendChild(makeEventEl(ev,ev.startH*HOUR_H_PX,ev.duration*HOUR_H_PX));
+    });
+    grid.appendChild(col);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MAKE EVENT ELEMENT
+// ══════════════════════════════════════════════════════════════════
+function makeEventEl(ev,top,height){
+  const el=document.createElement('div');
+  el.className=`event cat-${ev.cat}${ev.fixed?' fixed':''}`;
+  el.style.cssText=`top:${top+2}px;height:${height-4}px;`;
+  el.draggable=!ev.fixed;
+  const tip=document.createElement('div');tip.className='time-tooltip';tip.textContent=`${hFmt(ev.startH)}–${hFmt(ev.endH)}`;
+  el.innerHTML=`${ev.fixed?'<span class="ev-lock">🔒</span>':''}<div class="ev-title">${ev.title}</div><div class="ev-meta"><div class="ev-cat-dot"></div><span>${hFmt(ev.startH)} – ${hFmt(ev.endH)}</span></div>`;
+  el.appendChild(tip);
+  if(!ev.fixed){
+    const rh=document.createElement('div');rh.className='ev-resize';
+    rh.addEventListener('mousedown',e=>startResize(e,ev,el,tip));
+    el.appendChild(rh);
+    el.addEventListener('dragstart',e=>{dragEvt={ev,origDay:ev.day};el.classList.add('dragging');tip.style.display='block';e.dataTransfer.effectAllowed='move';});
+    el.addEventListener('dragend',()=>{el.classList.remove('dragging');tip.style.display='';});
+  }
+  el.addEventListener('click',e=>{if(!resizing){e.stopPropagation();openModal(ev);}});
+  return el;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DRAG & DROP
+// ══════════════════════════════════════════════════════════════════
+function handleDrop(targetDay,targetHour){
+  if(!dragEvt)return;
+  const{ev,origDay}=dragEvt;dragEvt=null;
+  const ns=targetHour,ne=ns+ev.duration;
+  if(ne>HOUR_END){showToast('Event exceeds end of day');return;}
+  const ov=(schedule[targetDay]||[]).find(e=>e.id!==ev.id&&ns<e.endH&&ne>e.startH);
+  if(ov){showToast(ov.fixed?'🔒 Overlap with a locked event':'Overlap with another event');return;}
+  schedule[origDay]=schedule[origDay].filter(e=>e.id!==ev.id);
+  ev.day=targetDay;ev.startH=ns;ev.endH=ne;
+  schedule[targetDay].push(ev);render();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RESIZE
+// ══════════════════════════════════════════════════════════════════
+let resizing=false;
+function startResize(e,ev,el,tip){
+  e.preventDefault();e.stopPropagation();resizing=true;el.classList.add('resizing');
+  const sy=e.clientY,oe=ev.endH;
+  function mv(e){
+    const dh=Math.round((e.clientY-sy)/HOUR_H_PX);
+    const ne=Math.max(ev.startH+1,Math.min(HOUR_END,oe+dh));
+    const ov=(schedule[ev.day]||[]).find(o=>o.id!==ev.id&&ev.startH<o.endH&&ne>o.startH);
+    if(!ov){ev.endH=ne;ev.duration=ne-ev.startH;el.style.height=(ev.duration*HOUR_H_PX-4)+'px';tip.textContent=`${hFmt(ev.startH)}–${hFmt(ev.endH)}`;const ms=el.querySelector('.ev-meta span');if(ms)ms.textContent=`${hFmt(ev.startH)} – ${hFmt(ev.endH)}`;}
+  }
+  function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);el.classList.remove('resizing');setTimeout(()=>resizing=false,50);render();}
+  document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EVENT MODAL
+// ══════════════════════════════════════════════════════════════════
+let modalEv=null;
+function openModal(ev){
+  modalEv=ev;
+  const cat=CAT[ev.cat]||CAT.time;
+  const badge=document.getElementById('modal-badge');
+  badge.textContent=cat.label;
+  badge.style.cssText=`background:${cat.color}18;color:${cat.color};border:1px solid ${cat.color}40;`;
+  document.getElementById('modal-fixed-badge').style.display=ev.fixed?'inline-flex':'none';
+  document.getElementById('modal-title').textContent=ev.title;
+  document.getElementById('modal-time').textContent=`${hFmt(ev.startH)} – ${hFmt(ev.endH)} · ${ev.duration}h`;
+  const eb=document.getElementById('modal-edit');
+  eb.style.display=ev.fixed?'none':'flex';
+  if(!ev.fixed){
+    document.getElementById('ed-title').value=ev.title;
+    document.getElementById('ed-start').value=String(ev.startH).padStart(2,'0')+':00';
+    document.getElementById('ed-end').value=String(ev.endH).padStart(2,'0')+':00';
+    document.getElementById('ed-cat').value=ev.cat;
+  }
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+document.getElementById('modal-save').addEventListener('click',()=>{
+  if(!modalEv||modalEv.fixed)return;
+  const title=document.getElementById('ed-title').value.trim();
+  const ns=parseInt(document.getElementById('ed-start').value.split(':')[0]);
+  const ne=parseInt(document.getElementById('ed-end').value.split(':')[0]);
+  const nc=document.getElementById('ed-cat').value;
+  if(!title){showToast('Please enter a title');return;}
+  if(isNaN(ns)||isNaN(ne)||ne<=ns){showToast('Invalid time range');return;}
+  if(ns<0||ne>24){showToast('Time out of range');return;}
+  const ov=(schedule[modalEv.day]||[]).find(o=>o.id!==modalEv.id&&ns<o.endH&&ne>o.startH);
+  if(ov){showToast(ov.fixed?'🔒 Overlap with a locked event':'Overlap with another event');return;}
+  modalEv.title=title;modalEv.startH=ns;modalEv.endH=ne;modalEv.duration=ne-ns;modalEv.cat=nc;
+  document.getElementById('modal-backdrop').classList.remove('open');
+  render();showToast('✓ Changes saved');
+});
+document.getElementById('modal-close').addEventListener('click',()=>document.getElementById('modal-backdrop').classList.remove('open'));
+document.getElementById('modal-backdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)document.getElementById('modal-backdrop').classList.remove('open');});
+
+// ══════════════════════════════════════════════════════════════════
+// BALANCE CHECK
+// ══════════════════════════════════════════════════════════════════
+function openCheckModal(){
+  const wt=getWeeklyTotals();
+  document.getElementById('check-sched-label').textContent=SCHED_NAMES[activeSchedIdx];
+
+  // weekly criteria
+  let allPass=true;
+  const weeklyHTML=WEEK_RULES.map(r=>{
+    const val=wt[r.key]||0;
+    const over=r.max&&val>r.max;
+    const pass=r.max?(val>=r.min&&!over):val>=r.min;
+    if(!pass)allPass=false;
+    const status=pass?'ok':over?'warn':'fail';
+    const target=r.max||r.min;
+    const pct=Math.min(100,Math.round(val/target*100));
+    const tlabel=r.max?`${r.min}–${r.max}h`:` ≥${r.min}h`;
+    const noteHtml=r.note?`<span class="crit-target"> · ${r.note}</span>`:'';
+    return`<div class="crit-row ${status}">
+      <span class="crit-icon">${r.icon}</span>
+      <span class="crit-label">${r.label}<span class="crit-target"> ${tlabel}</span>${noteHtml}</span>
+      <div class="crit-bar-wrap"><div class="crit-bar" style="width:${pct}%"></div></div>
+      <span class="crit-value">${val}h</span>
+    </div>`;
+  }).join('');
+  document.getElementById('check-weekly').innerHTML=weeklyHTML;
+
+  // daily rows
+  const dailyRows=DAY_FULL.map((name,d)=>{
+    const sl=(schedule[d]||[]).filter(ev=>ev.cat==='sleep').reduce((s,ev)=>s+ev.duration,0);
+    const fa=(schedule[d]||[]).filter(ev=>ev.cat==='family').reduce((s,ev)=>s+ev.duration,0);
+    const issues=[];
+    if(sl<DAY_SLEEP_MIN)  issues.push(`sleep ${sl}h<${DAY_SLEEP_MIN}h`);
+    if(fa<DAY_FAMILY_MIN) issues.push(`family ${fa}h<${DAY_FAMILY_MIN}h`);
+    if(issues.length)allPass=false;
+    return`<tr class="${issues.length?'day-fail':''}">
+      <td><strong>${name}</strong></td>
+      <td><span class="pill ${sl>=DAY_SLEEP_MIN?'ok':'fail'}">${sl}h</span></td>
+      <td><span class="pill ${fa>=DAY_FAMILY_MIN?'ok':'fail'}">${fa}h</span></td>
+      <td>${issues.length?'<span class="pill fail">⚠ Issues</span>':'<span class="pill ok">✓ OK</span>'}</td>
+      <td><span style="color:var(--fail);font-size:.65rem">${issues.join(' · ')}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('check-daily').innerHTML=dailyRows;
+
+  // verdict
+  const verd=document.getElementById('check-verdict');
+  if(allPass){
+    verd.className='check-verdict pass';
+    verd.innerHTML='<span>✅</span><span>Your week is well-balanced across all criteria.</span>';
+  } else {
+    const wFails=WEEK_RULES.filter(r=>{const v=wt[r.key]||0;const over=r.max&&v>r.max;return!(r.max?(v>=r.min&&!over):v>=r.min);}).length;
+    const dFails=DAY_FULL.filter((_,d)=>{
+      const sl=(schedule[d]||[]).filter(ev=>ev.cat==='sleep').reduce((s,ev)=>s+ev.duration,0);
+      const fa=(schedule[d]||[]).filter(ev=>ev.cat==='family').reduce((s,ev)=>s+ev.duration,0);
+      return sl<DAY_SLEEP_MIN||fa<DAY_FAMILY_MIN;
+    }).length;
+    const parts=[];
+    if(wFails)parts.push(`${wFails} weekly criterion${wFails>1?'s':''} violated`);
+    if(dFails)parts.push(`${dFails} day${dFails>1?'s':''} with daily issues`);
+    verd.className='check-verdict fail';
+    verd.innerHTML=`<span>⚠️</span><span><strong>Balance issues found:</strong> ${parts.join(' · ')}</span>`;
+  }
+  document.getElementById('check-backdrop').classList.add('open');
+}
+document.getElementById('btn-check').addEventListener('click',openCheckModal);
+document.getElementById('check-close').addEventListener('click',()=>document.getElementById('check-backdrop').classList.remove('open'));
+document.getElementById('check-backdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)document.getElementById('check-backdrop').classList.remove('open');});
+
+// ══════════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2800);}
+
+// ══════════════════════════════════════════════════════════════════
+// XML IMPORT
+// ══════════════════════════════════════════════════════════════════
+document.getElementById('file-input').addEventListener('change',function(){
+  const file=this.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      schedule=parseXML(e.target.result);
+      // deactivate preset buttons
+      ['btn-s1','btn-s2','btn-s3'].forEach(id=>document.getElementById(id).classList.remove('active'));
+      render();showToast(`✓ Imported: ${file.name}`);
+    }catch{showToast('Failed to parse XML file');}
+  };
+  r.readAsText(file);this.value='';
+});
+
+// ══════════════════════════════════════════════════════════════════
+// EXPORT XML
+// ══════════════════════════════════════════════════════════════════
+const DAY_XML_NAME = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+document.getElementById('btn-export').addEventListener('click',()=>{
+  const lines=['<?xml version="1.0" encoding="UTF-8"?>','<schedule>'];
+  for(let d=0;d<7;d++){
+    lines.push(`  <day name="${DAY_XML_NAME[d]}">`);
+    const sorted=[...(schedule[d]||[])].sort((a,b)=>a.startH-b.startH);
+    sorted.forEach(ev=>{
+      const s=String(ev.startH).padStart(2,'0')+':00';
+      const e=String(ev.endH).padStart(2,'0')+':00';
+      const title=ev.title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      lines.push(`    <event start="${s}" end="${e}" category="${ev.cat}" is_fixed="${ev.fixed}">${title}</event>`);
+    });
+    lines.push('  </day>');
+  }
+  lines.push('</schedule>');
+  const blob=new Blob([lines.join('\n')],{type:'application/xml'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`schedule_${['s1','s2','s3'][activeSchedIdx]||'custom'}_export.xml`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('✓ Schedule exported as XML');
+});
+
+// ══════════════════════════════════════════════════════════════════
+// WELCOME MODAL
+// ══════════════════════════════════════════════════════════════════
+document.getElementById('welcome-start').addEventListener('click',()=>{
+  document.getElementById('welcome-backdrop').classList.remove('open');
+});
+document.getElementById('welcome-backdrop').addEventListener('click',e=>{
+  if(e.target===e.currentTarget) document.getElementById('welcome-backdrop').classList.remove('open');
+});
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+render();
+</script>
+</body>
+</html>
